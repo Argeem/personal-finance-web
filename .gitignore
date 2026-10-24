@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 
 src/data/financeData.json
+.env
+.env.*
+!.env.example
+!.env.deploy.example
+.env.deploy
