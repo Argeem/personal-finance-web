@@ -44,11 +44,35 @@ export class JsonDataSyncService {
     };
   }
 
+  private saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * ดึงข้อมูลล่าสุดจาก src/data/financeData.json ผ่าน Vite dev server
+   */
+  async fetchServerData(): Promise<FinanceDataSchema | null> {
+    try {
+      const response = await fetch('/__api/data', {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      });
+      if (response.ok) {
+        const json = await response.json();
+        if (json && Array.isArray(json.items) && Array.isArray(json.landInstallments)) {
+          return json as FinanceDataSchema;
+        }
+      }
+    } catch {
+      // Endpoint ไม่พร้อมใช้งาน (เช่น บน Static Hosting หรือออฟไลน์)
+    }
+    return null;
+  }
+
   /**
    * บันทึกข้อมูลกลับไปยัง src/data/financeData.json บนเครื่อง (ผ่าน Vite dev server)
-   * หากทำงานในโหมด Static Hosting จะดาวน์โหลดไฟล์ JSON ให้แทนอัตโนมัติ
+   * หากทำงานในโหมด Static Hosting จะดาวน์โหลดไฟล์ JSON ให้แทนอัตโนมัติเฉพาะเมื่อ autoDownload = true
    */
-  async saveToProjectFile(payload: FinanceDataSchema): Promise<SaveResult> {
+  async saveToProjectFile(payload: FinanceDataSchema, autoDownload = false): Promise<SaveResult> {
     try {
       const response = await fetch('/__api/save-data', {
         method: 'POST',
@@ -70,13 +94,47 @@ export class JsonDataSyncService {
       // ไม่สามารถยิง dev server ได้ (เช่น deploy ขึ้น Vercel/Netlify/Hosting แล้ว)
     }
 
-    // กรณีอยู่บน Hosting ดาวน์โหลดไฟล์เพื่อให้ copy ไป deploy ได้
-    this.downloadJsonFile(payload);
+    if (autoDownload) {
+      this.downloadJsonFile(payload);
+      return {
+        success: true,
+        message: 'ดาวน์โหลด financeData.json สำเร็จ (นำไปแทนที่ใน src/data/ เพื่อ deploy ข้อมูลชุดนี้)',
+        isLocalDev: false
+      };
+    }
+
     return {
-      success: true,
-      message: 'ดาวน์โหลด financeData.json สำเร็จ (นำไปแทนที่ใน src/data/ เพื่อ deploy ข้อมูลชุดนี้)',
+      success: false,
+      message: 'ไม่ได้ทำงานในโหมด Local Dev Server (ไม่สามารถเขียนไฟล์บนเครื่องได้อัตโนมัติ)',
       isLocalDev: false
     };
+  }
+
+  /**
+   * บันทึกอัตโนมัติแบบ Debounced เพื่อไม่ให้เขียนดิสก์บ่อยเกินไป
+   */
+  debouncedAutoSave(
+    payload: FinanceDataSchema,
+    onStatusChange?: (status: 'saving' | 'saved' | 'idle' | 'error') => void,
+    delayMs = 600
+  ) {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+    }
+    onStatusChange?.('saving');
+
+    this.saveTimer = setTimeout(async () => {
+      try {
+        const res = await this.saveToProjectFile(payload, false);
+        if (res.success && res.isLocalDev) {
+          onStatusChange?.('saved');
+        } else {
+          onStatusChange?.('idle');
+        }
+      } catch {
+        onStatusChange?.('error');
+      }
+    }, delayMs);
   }
 
   /**

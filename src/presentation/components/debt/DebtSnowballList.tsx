@@ -36,6 +36,7 @@ export const DebtSnowballList: React.FC<DebtSnowballListProps> = ({ snowballList
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                   {debt.category} • ค่างวด {formatCurrency(debt.monthly)}
+                  {debt.progressPercent > 0 && ` • ผ่อนแล้ว ${debt.progressPercent}%`}
                 </div>
               </div>
             </div>

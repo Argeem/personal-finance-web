@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, Home, CreditCard, Sun, Moon, PiggyBank, Settings } from 'lucide-react';
+import { BarChart3, Home, CreditCard, Sun, Moon, PiggyBank, Settings, Save } from 'lucide-react';
 import { Theme } from '../../../adapters/in/hooks/useTheme';
 
 export type ActiveTab = 'finance' | 'invest' | 'land' | 'debt';
@@ -11,6 +11,8 @@ interface NavbarProps {
   onToggleTheme: () => void;
   syncStatus: string;
   onOpenSettings: () => void;
+  onSave?: () => void;
+  isSaving?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -20,6 +22,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleTheme,
   syncStatus,
   onOpenSettings,
+  onSave,
+  isSaving,
 }) => {
   return (
     <header className="app-header">
@@ -77,6 +81,31 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Actions */}
         <div className="header-actions">
+          {onSave && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={onSave}
+              disabled={isSaving}
+              title="บันทึกข้อมูลลง src/data/financeData.json ทันที"
+              style={{
+                fontSize: '12px',
+                padding: '6px 12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'linear-gradient(135deg, var(--indigo-600) 0%, var(--indigo-700) 100%)',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 600,
+                boxShadow: '0 2px 4px rgba(79, 70, 229, 0.25)',
+              }}
+            >
+              <Save size={14} className={isSaving ? 'animate-spin' : ''} />
+              <span>{isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}</span>
+            </button>
+          )}
+
           <button
             type="button"
             className="btn btn-secondary btn-sm"

@@ -95,7 +95,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setIsSavingProjectFile(true);
     try {
       const payload = container.jsonSync.createFullPayload(items, installments, studentLoan, investments);
-      const result = await container.jsonSync.saveToProjectFile(payload);
+      const result = await container.jsonSync.saveToProjectFile(payload, true);
       if (result.isLocalDev) {
         onNotify('บันทึกลง src/data/financeData.json เรียบร้อยแล้ว พร้อม deploy ข้อมูลล่าสุดไปด้วยทันที!', 'success');
       } else {

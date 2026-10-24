@@ -44,9 +44,14 @@ export class CalculateSnowballPlanUseCase {
     candidates.sort((a, b) => a.remaining - b.remaining);
 
     const snowballList: DebtSnowballItem[] = candidates.map((item, index) => {
-      const progressPercent = item.principal > 0
-        ? Math.round(((item.principal - item.remaining) / item.principal) * 100)
+      const match = item.installment ? item.installment.match(/^(\d+)\s*(?:\/|\s)\s*(\d+)$/) : null;
+      const installmentPct = match && parseInt(match[2], 10) > 0
+        ? Math.round((parseInt(match[1], 10) / parseInt(match[2], 10)) * 100)
         : 0;
+
+      const progressPercent = item.principal > 0
+        ? Math.min(100, Math.max(0, Math.round(((item.principal - item.remaining) / item.principal) * 100)))
+        : installmentPct;
 
       return {
         ...item,

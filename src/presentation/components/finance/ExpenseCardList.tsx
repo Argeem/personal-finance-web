@@ -43,6 +43,16 @@ export const ExpenseCardList: React.FC<ExpenseCardListProps> = ({
         const hasChildren = Boolean(item.children && item.children.length > 0);
         const isExpanded = expandedIds[item.id] ?? false;
 
+        const instMatch = item.installment ? item.installment.match(/^(\d+)\s*(?:\/|\s)\s*(\d+)$/) : null;
+        const installmentPct = instMatch && parseInt(instMatch[2], 10) > 0
+          ? Math.round((parseInt(instMatch[1], 10) / parseInt(instMatch[2], 10)) * 100)
+          : 0;
+
+        const progressPct =
+          item.principal > 0
+            ? Math.min(100, Math.max(0, Math.round(((item.principal - item.remaining) / item.principal) * 100)))
+            : installmentPct;
+
         return (
           <div key={item.id} className={`m-finance-card ${isPaid ? 'paid' : ''}`}>
             <div
@@ -128,6 +138,34 @@ export const ExpenseCardList: React.FC<ExpenseCardListProps> = ({
                 <span>
                   คงเหลือ: <strong style={{ color: 'var(--amber-400)' }}>{formatCurrency(item.remaining)}</strong>
                 </span>
+              </div>
+            )}
+
+            {(item.principal > 0 || Boolean(instMatch)) && (
+              <div style={{ marginTop: '6px' }}>
+                <div className="mini-progress-bar" style={{ height: '6px', background: 'var(--bg-surface-elevated)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div
+                    className="mini-progress-fill"
+                    style={{
+                      width: `${progressPct}%`,
+                      height: '100%',
+                      background: 'linear-gradient(90deg, var(--indigo-500) 0%, var(--emerald-500) 100%)',
+                      transition: 'width 0.25s ease',
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '11px',
+                    marginTop: '3px',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  <span style={{ fontWeight: 700, color: 'var(--indigo-400)' }}>{progressPct}% ผ่อนแล้ว</span>
+                  <span>{item.installment}</span>
+                </div>
               </div>
             )}
 

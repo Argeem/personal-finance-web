@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Navbar, ActiveTab } from './presentation/components/common/Navbar';
 import { MobileBottomNav } from './presentation/components/common/MobileBottomNav';
 import { SettingsModal } from './presentation/components/common/SettingsModal';
@@ -12,6 +12,7 @@ import { useDebtSnowball } from './adapters/in/hooks/useDebtSnowball';
 import { useInvestmentPortfolio } from './adapters/in/hooks/useInvestmentPortfolio';
 import { useTheme } from './adapters/in/hooks/useTheme';
 import { InvestmentItem } from './core/domain/Investment';
+import { container } from './config/container';
 import './presentation/styles/theme.css';
 
 interface ToastMessage {
@@ -25,6 +26,9 @@ export const App: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<string>('พร้อมใช้งาน');
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const isFirstSyncRef = useRef<boolean>(true);
 
   // Inbound Hooks (Adapters)
   const { theme, toggleTheme } = useTheme();
@@ -96,6 +100,89 @@ export const App: React.FC = () => {
     }
   };
 
+  // 1. Initial Load: Fetch latest data directly from src/data/financeData.json via dev server
+  useEffect(() => {
+    let active = true;
+    async function initData() {
+      try {
+        const serverData = await container.jsonSync.fetchServerData();
+        if (active && serverData) {
+          if (Array.isArray(serverData.items) && serverData.items.length > 0) {
+            await setAllItems(serverData.items);
+          }
+          if (Array.isArray(serverData.landInstallments) && serverData.landInstallments.length > 0) {
+            await setAllInstallments(serverData.landInstallments);
+          }
+          if (Array.isArray(serverData.investments) && serverData.investments.length > 0) {
+            await setAllInvestments(serverData.investments);
+          }
+          setSyncStatus('ซิงค์กับไฟล์สำเร็จ');
+        }
+      } catch (err) {
+        console.warn('Initial server sync skipped:', err);
+      } finally {
+        if (active) {
+          setIsInitialized(true);
+        }
+      }
+    }
+    initData();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // 2. Real-time Auto-Save: Whenever items, installments, or investments change, auto-save to disk
+  useEffect(() => {
+    if (!isInitialized) return;
+    if (isFirstSyncRef.current) {
+      isFirstSyncRef.current = false;
+      return;
+    }
+
+    const payload = container.jsonSync.createFullPayload(items, installments, studentLoan, investments);
+    setIsSaving(true);
+    container.jsonSync.debouncedAutoSave(payload, (status) => {
+      if (status === 'saving') {
+        setIsSaving(true);
+        setSyncStatus('กำลังบันทึกลงไฟล์...');
+      } else if (status === 'saved') {
+        setIsSaving(false);
+        const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setSyncStatus(`บันทึกแล้ว (${timeStr})`);
+      } else if (status === 'error') {
+        setIsSaving(false);
+        setSyncStatus('บันทึกในเครื่องแล้ว');
+      } else {
+        setIsSaving(false);
+        setSyncStatus('พร้อมใช้งาน');
+      }
+    });
+  }, [items, installments, investments, studentLoan, isInitialized]);
+
+  // 3. Manual Save handler for explicit Save button
+  const handleManualSave = async () => {
+    setIsSaving(true);
+    setSyncStatus('กำลังบันทึกลงไฟล์...');
+    try {
+      const payload = container.jsonSync.createFullPayload(items, installments, studentLoan, investments);
+      const res = await container.jsonSync.saveToProjectFile(payload, true);
+      const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if (res.isLocalDev && res.success) {
+        setSyncStatus(`บันทึกแล้ว (${timeStr})`);
+        addToast('บันทึกข้อมูลลง src/data/financeData.json สำเร็จแล้ว', 'success');
+      } else {
+        setSyncStatus(`ดาวน์โหลดแล้ว (${timeStr})`);
+        addToast(res.message, 'success');
+      }
+    } catch (err: any) {
+      addToast(`บันทึกล้มเหลว: ${err.message}`, 'info');
+      setSyncStatus('บันทึกล้มเหลว');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div>
       {/* Top Navigation */}
@@ -109,6 +196,8 @@ export const App: React.FC = () => {
         onToggleTheme={toggleTheme}
         syncStatus={syncStatus}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onSave={handleManualSave}
+        isSaving={isSaving}
       />
 
       {/* Main Feature Views - 4 Tabs Exactly */}

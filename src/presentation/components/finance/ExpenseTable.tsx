@@ -83,10 +83,16 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             const isCreditCardParent = item.title.includes('บัตรเครดิต') || hasChildren;
             const isExpanded = expandedParents[item.id] ?? false;
             const isPaid = item.paid;
+            
+            const instMatch = item.installment ? item.installment.match(/^(\d+)\s*(?:\/|\s)\s*(\d+)$/) : null;
+            const installmentPct = instMatch && parseInt(instMatch[2], 10) > 0
+              ? Math.round((parseInt(instMatch[1], 10) / parseInt(instMatch[2], 10)) * 100)
+              : 0;
+
             const progressPct =
               item.principal > 0
-                ? Math.round(((item.principal - item.remaining) / item.principal) * 100)
-                : 0;
+                ? Math.min(100, Math.max(0, Math.round(((item.principal - item.remaining) / item.principal) * 100)))
+                : installmentPct;
 
             const displayMonthly = hasChildren
               ? item.children!.reduce((sum, c) => sum + (Number(c.monthly) || 0), 0)
@@ -200,7 +206,7 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                   </td>
 
                   <td>
-                    {item.principal > 0 ? (
+                    {(item.principal > 0 || Boolean(instMatch)) ? (
                       <div className="mini-progress-wrap">
                         <div className="mini-progress-bar">
                           <div className="mini-progress-fill" style={{ width: `${progressPct}%` }} />
