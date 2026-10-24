@@ -94,11 +94,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                background: 'linear-gradient(135deg, var(--indigo-600) 0%, var(--indigo-700) 100%)',
-                color: '#fff',
+                background: '#4F46E5',
+                color: '#ffffff',
                 border: 'none',
                 fontWeight: 600,
-                boxShadow: '0 2px 4px rgba(79, 70, 229, 0.25)',
+                boxShadow: '0 2px 8px rgba(79, 70, 229, 0.35)',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
               }}
             >
               <Save size={14} className={isSaving ? 'animate-spin' : ''} />
